@@ -85,6 +85,15 @@ tbody tr.medio{border-left-color:#d8ac3f;}
 .chip-mini{font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:16px;border:2px solid #ccc;background:transparent;cursor:pointer;color:var(--tinta);}
 .chip-mini.ativo{border-color:var(--tinta);background:var(--tinta);color:#fff;}
 
+.noticias-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+.noticia-card{background:var(--branco);border-radius:12px;padding:0;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.08);display:flex;flex-direction:column;text-decoration:none;color:inherit;transition:transform .12s;}
+.noticia-card:hover{transform:translateY(-3px);box-shadow:0 5px 14px rgba(0,0,0,.14);}
+.noticia-thumb{height:90px;display:flex;align-items:center;justify-content:center;font-size:30px;}
+.noticia-corpo{padding:12px 14px;flex:1;display:flex;flex-direction:column;gap:6px;}
+.noticia-corpo .cat{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;opacity:.75;}
+.noticia-corpo .tit{font-size:13px;font-weight:700;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.noticia-corpo .fonte{font-size:11px;color:#7a755f;margin-top:auto;}
+
 footer{max-width:1100px;margin:30px auto 0;padding:0 24px 40px;font-size:12px;color:#7a755f;line-height:1.6;}
 
 @media (max-width:640px){
@@ -106,7 +115,8 @@ footer{max-width:1100px;margin:30px auto 0;padding:0 24px 40px;font-size:12px;co
 <nav class="tabs">
   <button class="tab ativo" id="tabLeis" onclick="mudarAba('leis')">📜 Leis em tramitação</button>
   <button class="tab" id="tabConsultas" onclick="mudarAba('consultas')">🗳️ Consultas públicas</button>
-  <button class="tab" id="tabNoticias" onclick="mudarAba('noticias')">📰 Diário Oficial</button>
+  <button class="tab" id="tabDOU" onclick="mudarAba('dou')">📰 Diário Oficial</button>
+  <button class="tab" id="tabNoticias" onclick="mudarAba('noticias')">🗞️ Notícias</button>
 </nav>
 
 <main>
@@ -151,12 +161,21 @@ footer{max-width:1100px;margin:30px auto 0;padding:0 24px 40px;font-size:12px;co
     </section>
   </div>
 
-  <div id="abaNoticias" style="display:none;">
+  <div id="abaDOU" style="display:none;">
     <section>
       <h2 class="secao-titulo">📰 Publicações no Diário Oficial</h2>
       <p class="secao-sub">Via Google Alertas, monitorando o site in.gov.br pelos nossos temas (cobertura parcial — depende do que o Google indexa).</p>
-      <div class="filtros-mini" id="filtrosNoticias"></div>
+      <div class="filtros-mini" id="filtrosDOU"></div>
       <div class="votacao-grid" id="noticiasDOU"></div>
+    </section>
+  </div>
+
+  <div id="abaNoticias" style="display:none;">
+    <section>
+      <h2 class="secao-titulo">🗞️ Notícias de imprensa</h2>
+      <p class="secao-sub">Jornais, sites e blogs cobrindo os nossos temas, via Google Alertas.</p>
+      <div class="filtros-mini" id="filtrosImprensa"></div>
+      <div class="noticias-grid" id="noticiasImprensa"></div>
     </section>
   </div>
 </main>
@@ -166,6 +185,12 @@ footer{max-width:1100px;margin:30px auto 0;padding:0 24px 40px;font-size:12px;co
 </footer>
 
 <script>
+const ICONES = {
+  "Meio ambiente":"🌳", "Direitos dos animais":"🐾", "Agropecuária":"🌾",
+  "Mineração":"⛏️", "Povos originários":"🪶", "Água":"💧",
+  "Crimes ambientais":"🚨", "Data centers e tecnologia":"💻"
+};
+
 const CORES = {
   "Meio ambiente":"#8a7325", "Direitos dos animais":"#E5241C", "Agropecuária":"#B587C4",
   "Mineração":"#7FA3AC", "Povos originários":"#8a2622", "Água":"#3f7d8c",
@@ -177,6 +202,7 @@ const LINK_CAMARA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7DxhtwJQx
 const LINK_SENADO = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7DxhtwJQx16n0y9jNj7Y-8cRIMoCV7bLjcOdBuSyRJcX1HaTzKDh6J74Q0SNI6ZL5yCXKZUwdGNHo/pub?gid=726752641&single=true&output=csv";
 const LINK_ECIDADANIA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7DxhtwJQx16n0y9jNj7Y-8cRIMoCV7bLjcOdBuSyRJcX1HaTzKDh6J74Q0SNI6ZL5yCXKZUwdGNHo/pub?gid=1540667840&single=true&output=csv";
 const LINK_ALERTAS_DOU = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7DxhtwJQx16n0y9jNj7Y-8cRIMoCV7bLjcOdBuSyRJcX1HaTzKDh6J74Q0SNI6ZL5yCXKZUwdGNHo/pub?gid=526939485&single=true&output=csv";
+const LINK_NOTICIAS_IMPRENSA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7DxhtwJQx16n0y9jNj7Y-8cRIMoCV7bLjcOdBuSyRJcX1HaTzKDh6J74Q0SNI6ZL5yCXKZUwdGNHo/pub?gid=1655859703&single=true&output=csv";
 // =========================================================================
 
 let DADOS = [];
@@ -231,6 +257,16 @@ function normalizarLinhaAlertas(row){
   };
 }
 
+function normalizarLinhaNoticia(row){
+  return {
+    categoria: row["Categoria"] || "Outros",
+    titulo: row["Título"] || "",
+    link: row["Link"] || "#",
+    fonte: row["Fonte"] || "",
+    data: row["Data da publicação"] || ""
+  };
+}
+
 function buscarCSV(url, normalizador){
   return new Promise((resolve)=>{
     if(!url || url.startsWith("COLE_AQUI")){ resolve([]); return; }
@@ -244,19 +280,22 @@ function buscarCSV(url, normalizador){
 
 let VOTACAO_POPULAR = [];
 let NOTICIAS_DOU = [];
+let NOTICIAS_IMPRENSA = [];
 
 async function carregarDados(){
   const aviso = document.getElementById("aviso");
-  const [camara, senado, ecidadania, alertas] = await Promise.all([
+  const [camara, senado, ecidadania, alertas, imprensa] = await Promise.all([
     buscarCSV(LINK_CAMARA, normalizarLinhaCamara),
     buscarCSV(LINK_SENADO, normalizarLinhaSenado),
     buscarCSV(LINK_ECIDADANIA, normalizarLinhaECidadania),
-    buscarCSV(LINK_ALERTAS_DOU, normalizarLinhaAlertas)
+    buscarCSV(LINK_ALERTAS_DOU, normalizarLinhaAlertas),
+    buscarCSV(LINK_NOTICIAS_IMPRENSA, normalizarLinhaNoticia)
   ]);
   DADOS = [...camara, ...senado].filter(d=>d.projeto.trim()!=="/");
   DADOS.forEach(d=>{ d.dias = diasEntre(d.data); });
   VOTACAO_POPULAR = ecidadania.filter(d=>d.projeto.trim()!=="");
   NOTICIAS_DOU = alertas.filter(d=>d.titulo.trim()!=="" && d.titulo!=="Sem título");
+  NOTICIAS_IMPRENSA = imprensa.filter(d=>d.titulo.trim()!=="");
 
   if(DADOS.length===0){
     aviso.style.display="block";
@@ -264,20 +303,21 @@ async function carregarDados(){
   }
   montarRadar(); montarKpis(); montarFiltros(); montarTabela();
   montarFiltrosVotacao(); montarVotacaoPopular();
-  montarFiltrosNoticias(); montarNoticias();
+  montarFiltrosDOU(); montarNoticiasDOU();
+  montarFiltrosImprensa(); montarNoticiasImprensa();
 }
 
-let filtroNoticias = "Todos";
-function montarFiltrosNoticias(){
+let filtroDOU = "Todos";
+function montarFiltrosDOU(){
   const cats = ["Todos", ...new Set(NOTICIAS_DOU.map(n=>n.categoria))];
-  document.getElementById("filtrosNoticias").innerHTML = cats.map(c=>
-    `<button class="chip-mini ${c===filtroNoticias?'ativo':''}" onclick="filtrarNoticias('${c}')">${c}</button>`).join("");
+  document.getElementById("filtrosDOU").innerHTML = cats.map(c=>
+    `<button class="chip-mini ${c===filtroDOU?'ativo':''}" onclick="filtrarDOU('${c}')">${c}</button>`).join("");
 }
-function filtrarNoticias(c){ filtroNoticias = c; montarFiltrosNoticias(); montarNoticias(); }
+function filtrarDOU(c){ filtroDOU = c; montarFiltrosDOU(); montarNoticiasDOU(); }
 
-function montarNoticias(){
+function montarNoticiasDOU(){
   const el = document.getElementById("noticiasDOU");
-  const lista = NOTICIAS_DOU.filter(n => filtroNoticias==="Todos" || n.categoria===filtroNoticias);
+  const lista = NOTICIAS_DOU.filter(n => filtroDOU==="Todos" || n.categoria===filtroDOU);
   if(lista.length===0){
     el.innerHTML = '<p style="font-size:13px;color:#7a755f;">Nenhuma publicação encontrada ainda para esse filtro. Os alertas podem levar um tempo para começar a trazer resultados.</p>';
     return;
@@ -289,6 +329,32 @@ function montarNoticias(){
       <div class="ementa">${n.data||''}</div>
       <a class="votar-btn" href="${n.link}" target="_blank" rel="noopener">Ler publicação →</a>
     </div>`).join("");
+}
+
+let filtroImprensa = "Todos";
+function montarFiltrosImprensa(){
+  const cats = ["Todos", ...new Set(NOTICIAS_IMPRENSA.map(n=>n.categoria))];
+  document.getElementById("filtrosImprensa").innerHTML = cats.map(c=>
+    `<button class="chip-mini ${c===filtroImprensa?'ativo':''}" onclick="filtrarImprensa('${c}')">${c}</button>`).join("");
+}
+function filtrarImprensa(c){ filtroImprensa = c; montarFiltrosImprensa(); montarNoticiasImprensa(); }
+
+function montarNoticiasImprensa(){
+  const el = document.getElementById("noticiasImprensa");
+  const lista = NOTICIAS_IMPRENSA.filter(n => filtroImprensa==="Todos" || n.categoria===filtroImprensa);
+  if(lista.length===0){
+    el.innerHTML = '<p style="font-size:13px;color:#7a755f;">Nenhuma notícia encontrada ainda para esse filtro.</p>';
+    return;
+  }
+  el.innerHTML = lista.map(n => `
+    <a class="noticia-card" href="${n.link}" target="_blank" rel="noopener">
+      <div class="noticia-thumb" style="background:${CORES[n.categoria]||'#999'}22;">${ICONES[n.categoria]||'📰'}</div>
+      <div class="noticia-corpo">
+        <span class="cat" style="color:${CORES[n.categoria]||'#999'}">${n.categoria}</span>
+        <div class="tit">${n.titulo}</div>
+        <div class="fonte">${n.fonte||''}</div>
+      </div>
+    </a>`).join("");
 }
 
 let filtroVotacao = "Todos";
@@ -317,12 +383,14 @@ function montarVotacaoPopular(){
 }
 
 function mudarAba(nome){
-  document.getElementById("abaLeis").style.display = nome==="leis" ? "block" : "none";
-  document.getElementById("abaConsultas").style.display = nome==="consultas" ? "block" : "none";
-  document.getElementById("abaNoticias").style.display = nome==="noticias" ? "block" : "none";
-  document.getElementById("tabLeis").classList.toggle("ativo", nome==="leis");
-  document.getElementById("tabConsultas").classList.toggle("ativo", nome==="consultas");
-  document.getElementById("tabNoticias").classList.toggle("ativo", nome==="noticias");
+  ["leis","consultas","dou","noticias"].forEach(function(n){
+    document.getElementById("aba"+capitaliza(n)).style.display = (n===nome) ? "block" : "none";
+    document.getElementById("tab"+capitaliza(n)).classList.toggle("ativo", n===nome);
+  });
+}
+function capitaliza(s){
+  var mapa = {leis:"Leis", consultas:"Consultas", dou:"DOU", noticias:"Noticias"};
+  return mapa[s];
 }
 
 function badge(cat){ return `<span class="badge-cat" style="background:${CORES[cat]||'#999'}">${cat}</span>`; }
@@ -412,3 +480,8 @@ carregarDados();
 </script>
 </body>
 </html>
+const LINK_CAMARA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7DxhtwJQx16n0y9jNj7Y-8cRIMoCV7bLjcOdBuSyRJcX1HaTzKDh6J74Q0SNI6ZL5yCXKZUwdGNHo/pub?gid=1571863902&single=true&output=csv";
+const LINK_SENADO = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7DxhtwJQx16n0y9jNj7Y-8cRIMoCV7bLjcOdBuSyRJcX1HaTzKDh6J74Q0SNI6ZL5yCXKZUwdGNHo/pub?gid=726752641&single=true&output=csv";
+const LINK_ECIDADANIA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7DxhtwJQx16n0y9jNj7Y-8cRIMoCV7bLjcOdBuSyRJcX1HaTzKDh6J74Q0SNI6ZL5yCXKZUwdGNHo/pub?gid=1540667840&single=true&output=csv";
+const LINK_ALERTAS_DOU = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS7DxhtwJQx16n0y9jNj7Y-8cRIMoCV7bLjcOdBuSyRJcX1HaTzKDh6J74Q0SNI6ZL5yCXKZUwdGNHo/pub?gid=526939485&single=true&output=csv";
+
